@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tablero de Control PP8 · Rebolo · VIRTUS GLOBAL</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* ════ VIRTUS GLOBAL DESIGN SYSTEM ════ */
+:root {
+  --navy:    #002855;
+  --navy2:   #001a3d;
+  --navy3:   #003070;
+  --cobalt:  #0057A8;
+  --gold:    #C8A84B;
+  --gold-l:  #e8c96d;
+  --gold-bg: rgba(200,168,75,.12);
+  --gold-brd:rgba(200,168,75,.3);
+  --white:   #FFFFFF;
+  --lgray:   #F4F4F4;
+  --dgray:   #333333;
+  --card-bg: rgba(255,255,255,.06);
+  --card-brd:rgba(255,255,255,.1);
+  --brd2:    rgba(255,255,255,.05);
+  --ink:     rgba(255,255,255,.9);
+  --ink2:    rgba(255,255,255,.6);
+  --ink3:    rgba(255,255,255,.35);
+  /* Urgency */
+  --baja:    #10b981;
+  --baja-bg: rgba(16,185,129,.12);
+  --media:   #f59e0b;
+  --media-bg:rgba(245,158,11,.12);
+  --alta:    #f97316;
+  --alta-bg: rgba(249,115,22,.12);
+  --crit:    #dc2626;
+  --crit-bg: rgba(220,38,38,.12);
+  --r:10px; --r2:16px; --r3:22px;
+  --sh: 0 4px 24px rgba(0,0,0,.4);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'Montserrat',sans-serif;background:var(--navy);color:var(--ink);min-height:100vh;font-size:14px;line-height:1.6;}
+
+/* STRIPE */
+.stripe{height:3px;background:linear-gradient(90deg,var(--cobalt),var(--gold),var(--navy3),var(--gold),var(--cobalt));background-size:300% 100%;animation:sh 6s linear infinite;}
+@keyframes sh{0%{background-position:0%}100%{background-position:300%}}
+
+/* TOPBAR */
+.topbar{background:var(--navy2);border-bottom:1px solid var(--card-brd);padding:12px 32px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:3px;z-index:300;}
+.tb-left{display:flex;align-items:center;gap:14px;}
+.tb-logo{display:flex;align-items:center;gap:8px;}
+.tb-logo-mark{width:36px;height:36px;border-radius:8px;background:var(--gold-bg);border:1px solid var(--gold-brd);display:flex;align-items:center;justify-content:center;font-size:1.2em;}
+.tb-brand-name{font-size:.88em;font-weight:800;color:var(--gold);letter-spacing:.04em;line-height:1.1;}
+.tb-brand-sub{font-size:.7em;font-weight:400;color:var(--ink3);display:block;}
+.tb-divider{width:1px;height:28px;background:var(--card-brd);}
+.tb-title{font-size:.88em;font-weight:600;color:var(--ink);}
+.tb-loc{font-size:.72em;color:var(--ink3);}
+.tb-right{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.tb-status{display:flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:.72em;font-weight:600;background:var(--baja-bg);border:1px solid rgba(16,185,129,.3);color:var(--baja);}
+.tb-status.err{background:var(--crit-bg);border-color:rgba(220,38,38,.3);color:var(--crit);}
+.tb-status.loading{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.3);color:var(--media);}
+.status-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-update{font-size:.7em;color:var(--ink3);}
+.btn-refresh{padding:7px 14px;background:var(--gold-bg);border:1px solid var(--gold-brd);border-radius:8px;color:var(--gold);font-family:'Montserrat',sans-serif;font-size:.78em;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-refresh:hover{background:rgba(200,168,75,.22);}
+.btn-refresh:disabled{opacity:.5;cursor:not-allowed;}
+.btn-refresh .spin{display:none;}
+.btn-refresh.spinning .spin{display:inline;animation:spin 1s linear infinite;}
+.btn-refresh.spinning .icon{display:none;}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ALERT BANNER */
+.alert-banner{background:linear-gradient(135deg,rgba(220,38,38,.18),rgba(139,0,0,.15));border:1px solid rgba(220,38,38,.35);border-left:4px solid var(--crit);margin:12px 24px 0;border-radius:var(--r);padding:13px 20px;display:flex;align-items:center;gap:12px;font-size:.85em;color:#fca5a5;display:none;}
+.alert-banner.vis{display:flex;}
+.alert-banner strong{color:var(--crit);}
+
+/* MAIN */
+.wrap{max-width:1600px;margin:0 auto;padding:20px 24px 60px;}
+
+/* KPI STRIP */
+.kpi-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px;}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:680px){.kpi-strip{grid-template-columns:repeat(2,1fr);}}
+.kpi-card{background:var(--card-bg);border:1px solid var(--card-brd);border-radius:var(--r2);padding:18px 20px;position:relative;overflow:hidden;transition:transform .2s;}
+.kpi-card:hover{transform:translateY(-2px);}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kpi-color,var(--gold));}
+.kpi-label{font-size:.68em;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--ink3);margin-bottom:8px;}
+.kpi-num{font-size:2.2em;font-weight:800;color:var(--kpi-color,var(--gold));line-height:1;margin-bottom:4px;}
+.kpi-sub{font-size:.72em;color:var(--ink3);}
+.kpi-icon{position:absolute;right:16px;top:16px;font-size:1.6em;opacity:.25;}
+.kpi-trend{font-size:.72em;margin-top:6px;}
+.trend-up{color:var(--crit);}
+.trend-down{color:var(--baja);}
+.trend-neu{color:var(--ink3);}
+
+/* GRID LAYOUT */
+.grid-main{display:grid;grid-template-columns:1fr 420px;gap:18px;margin-bottom:18px;}
+@media(max-width:1200px){.grid-main{grid-template-columns:1fr;}}
+.grid-mid{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+@media(max-width:900px){.grid-mid{grid-template-columns:1fr;}}
+
+/* CARDS */
+.card{background:var(--card-bg);border:1px solid var(--card-brd);border-radius:var(--r3);box-shadow:var(--sh);overflow:hidden;}
+.card-hdr{padding:16px 22px;border-bottom:1px solid var(--brd2);display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.card-hdr-left{display:flex;align-items:center;gap:10px;}
+.c-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:1.1em;flex-shrink:0;}
+.ci-gold{background:var(--gold-bg);border:1px solid var(--gold-brd);}
+.ci-red {background:var(--crit-bg);border:1px solid rgba(220,38,38,.28);}
+.ci-blue{background:rgba(0,87,168,.15);border:1px solid rgba(0,87,168,.3);}
+.ci-teal{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.25);}
+.card-tag{font-size:.65em;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--ink3);}
+.card-title{font-size:.9em;font-weight:700;color:var(--ink);}
+.card-badge{padding:3px 10px;border-radius:20px;font-size:.67em;font-weight:700;}
+.card-body{padding:20px 22px;}
+
+/* MAP */
+#map{height:440px;border-radius:0 0 var(--r3) var(--r3);}
+.leaflet-container{background:#001a3d;}
+
+/* SEMÁFORO */
+.semaforo-wrap{padding:24px 22px;display:flex;flex-direction:column;align-items:center;}
+.sem-ring{width:130px;height:130px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-direction:column;margin-bottom:12px;transition:all .4s;position:relative;}
+.sem-ring::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid;opacity:.4;}
+.sem-ring.baja  {background:rgba(16,185,129,.15);border:3px solid var(--baja);}
+.sem-ring.media {background:rgba(245,158,11,.15);border:3px solid var(--media);}
+.sem-ring.alta  {background:rgba(249,115,22,.15);border:3px solid var(--alta);}
+.sem-ring.critica{background:rgba(220,38,38,.2);border:3px solid var(--crit);animation:semPulse 2s infinite;}
+@keyframes semPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,.4)}50%{box-shadow:0 0 0 14px rgba(220,38,38,0)}}
+.sem-ring.baja::before{border-color:var(--baja);}
+.sem-ring.media::before{border-color:var(--media);}
+.sem-ring.alta::before{border-color:var(--alta);}
+.sem-ring.critica::before{border-color:var(--crit);}
+.sem-ico{font-size:2.5em;line-height:1;}
+.sem-level{font-size:.78em;font-weight:700;letter-spacing:.1em;margin-top:4px;}
+.sem-ring.baja .sem-level{color:var(--baja);}
+.sem-ring.media .sem-level{color:var(--media);}
+.sem-ring.alta .sem-level{color:var(--alta);}
+.sem-ring.critica .sem-level{color:var(--crit);}
+.sem-desc{font-size:.78em;color:var(--ink3);text-align:center;max-width:200px;line-height:1.5;}
+.sem-score{font-size:1.4em;font-weight:800;color:var(--ink);margin-bottom:2px;}
+.sem-score-lbl{font-size:.68em;color:var(--ink3);}
+
+/* DONUT LEGEND */
+.donut-wrap{position:relative;width:160px;height:160px;margin:0 auto 14px;}
+.donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.donut-center-num{font-size:1.6em;font-weight:800;color:var(--ink);}
+.donut-center-lbl{font-size:.65em;color:var(--ink3);}
+.donut-legend{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.dl-item{display:flex;align-items:center;gap:7px;font-size:.75em;}
+.dl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dl-label{color:var(--ink2);}
+.dl-count{font-weight:700;color:var(--ink);margin-left:auto;}
+
+/* CHART WRAPPER */
+.chart-wrap{position:relative;padding:4px 0;}
+canvas{max-width:100%;}
+
+/* TABS */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--brd2);margin-bottom:16px;}
+.tab-btn{background:none;border:none;padding:8px 14px;font-family:'Montserrat',sans-serif;font-size:.78em;font-weight:600;color:var(--ink3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;}
+.tab-btn:hover{color:var(--ink2);}
+.tab-btn.active{color:var(--gold);border-bottom-color:var(--gold);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* TABLE */
+.data-table{width:100%;border-collapse:collapse;font-size:.8em;}
+.data-table th{background:rgba(0,40,85,.5);padding:9px 13px;text-align:left;font-weight:600;color:var(--ink3);font-size:.7em;text-transform:uppercase;letter-spacing:.07em;white-space:nowrap;}
+.data-table td{padding:9px 13px;border-top:1px solid var(--brd2);color:var(--ink2);vertical-align:middle;}
+.data-table tr:hover td{background:rgba(255,255,255,.03);}
+.data-table td.mono{font-family:monospace;font-size:.85em;color:var(--gold);}
+.urg-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:.75em;font-weight:700;}
+.up-baja  {background:var(--baja-bg);color:var(--baja);}
+.up-media {background:var(--media-bg);color:var(--media);}
+.up-alta  {background:var(--alta-bg);color:var(--alta);}
+.up-critica{background:var(--crit-bg);color:#fca5a5;}
+.score-bar-wrap{display:flex;align-items:center;gap:7px;}
+.score-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.1);flex:1;overflow:hidden;}
+.score-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--baja),var(--media),var(--crit));}
+
+/* STRATEGIC RESPONSE */
+.resp-grid{display:flex;flex-direction:column;gap:12px;}
+.resp-card{border-radius:var(--r2);padding:16px 20px;border:1px solid;position:relative;overflow:hidden;}
+.resp-card.rc-crit{background:rgba(220,38,38,.07);border-color:rgba(220,38,38,.25);}
+.resp-card.rc-alta{background:rgba(249,115,22,.07);border-color:rgba(249,115,22,.22);}
+.resp-card.rc-media{background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.2);}
+.resp-priority{font-size:.67em;font-weight:800;letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px;}
+.rc-crit .resp-priority{color:var(--crit);}
+.rc-alta .resp-priority{color:var(--alta);}
+.rc-media .resp-priority{color:var(--media);}
+.resp-title{font-size:.9em;font-weight:700;color:var(--ink);margin-bottom:6px;}
+.resp-entity{font-size:.75em;font-weight:600;color:var(--gold);margin-bottom:6px;}
+.resp-action{font-size:.8em;color:var(--ink2);line-height:1.55;}
+.resp-metric{font-size:.72em;color:var(--ink3);margin-top:6px;font-style:italic;}
+.resp-num{position:absolute;right:16px;top:12px;font-size:2em;font-weight:800;opacity:.08;color:var(--white);}
+
+/* MANIF LEVELS MINI */
+.m-row{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--brd2);}
+.m-row:last-child{border-bottom:none;}
+.m-label{font-size:.75em;color:var(--ink2);width:140px;flex-shrink:0;}
+.m-bar-wrap{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.m-bar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+.m-val{font-size:.75em;font-weight:700;width:36px;text-align:right;}
+
+/* SECTOR TABLE */
+.sector-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+.sector-card{background:rgba(255,255,255,.03);border:1px solid var(--card-brd);border-radius:var(--r);padding:13px 16px;}
+.sc-name{font-size:.8em;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.sc-num{font-size:1.4em;font-weight:800;line-height:1;margin-bottom:2px;}
+.sc-sub{font-size:.68em;color:var(--ink3);}
+
+/* LOADING OVERLAY */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(0,28,55,.7);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center;flex-direction:column;gap:16px;}
+.loading-overlay.vis{display:flex;}
+.loading-spinner{width:48px;height:48px;border:3px solid rgba(200,168,75,.2);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;}
+.loading-text{font-size:.85em;color:var(--ink2);}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:40px 20px;color:var(--ink3);}
+.empty-state .es-ico{font-size:2.5em;margin-bottom:12px;}
+.empty-state p{font-size:.85em;}
+
+/* CONFIG MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:600;align-items:center;justify-content:center;}
+.modal-bg.vis{display:flex;}
+.modal{background:var(--navy2);border:1px solid var(--card-brd);border-radius:var(--r3);padding:28px;max-width:540px;width:100%;margin:20px;}
+.modal h2{font-size:1em;font-weight:700;color:var(--gold);margin-bottom:6px;}
+.modal p{font-size:.82em;color:var(--ink2);margin-bottom:16px;line-height:1.6;}
+.modal input{width:100%;padding:10px 14px;border:1.5px solid var(--gold-brd);border-radius:var(--r);background:rgba(200,168,75,.07);color:var(--gold);font-family:'Montserrat',sans-serif;font-size:.88em;margin-bottom:14px;}
+.modal input:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(200,168,75,.15);}
+.modal-btns{display:flex;gap:10px;justify-content:flex-end;}
+.btn-modal-save{padding:9px 20px;background:var(--gold);color:var(--navy2);border:none;border-radius:8px;font-family:'Montserrat',sans-serif;font-size:.84em;font-weight:700;cursor:pointer;}
+.btn-modal-cancel{padding:9px 20px;background:transparent;color:var(--ink3);border:1px solid var(--card-brd);border-radius:8px;font-family:'Montserrat',sans-serif;font-size:.84em;cursor:pointer;}
+
+/* FOOTER */
+.footer{border-top:1px solid var(--card-brd);padding:16px 32px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:.72em;color:var(--ink3);}
+.footer strong{color:var(--gold);}
+</style>
+</head>
+<body>
+
+<div class="stripe"></div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Cargando datos desde Google Sheets...</div>
+</div>
+
+<!-- CONFIG MODAL -->
+<div class="modal-bg" id="configModal">
+  <div class="modal">
+    <h2>⚙️ Configurar conexión al Apps Script</h2>
+    <p>Ingresa la URL de tu Apps Script desplegado como Web App. Es la misma URL que usas en el formulario PP8, pero ahora debe ser la versión v2 que sirve datos (<code>?action=getData</code>).</p>
+    <input type="text" id="urlInput" placeholder="https://script.google.com/macros/s/...exec">
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="cerrarConfig()">Cancelar</button>
+      <button class="btn-modal-save" onclick="guardarConfig()">Guardar y conectar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="tb-left">
+    <div class="tb-logo">
+      <div class="tb-logo-mark">⚔️</div>
+      <div><div class="tb-brand-name">VIRTUS GLOBAL</div><span class="tb-brand-sub">Consultoría en Seguridad</span></div>
+    </div>
+    <div class="tb-divider"></div>
+    <div>
+      <div class="tb-title">Tablero de Control Estratégico · PP8</div>
+      <div class="tb-loc">📍 Barrio Rebolo · Localidad Suroriente · Barranquilla 2026</div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div class="tb-update" id="lastUpdateLabel">Sin datos</div>
+    <div class="tb-status" id="statusBadge"><span class="status-dot"></span><span id="statusText">Conectando...</span></div>
+    <button class="btn-refresh" id="btnRefresh" onclick="cargarDatos()">
+      <span class="icon">↻</span><span class="spin">⟳</span> Actualizar
+    </button>
+    <button class="btn-refresh" onclick="abrirConfig()" style="background:rgba(0,87,168,.15);border-color:rgba(0,87,168,.3);color:#93c5fd;">⚙️ Config</button>
+  </div>
+</div>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner" id="alertBanner">
+  <span style="font-size:1.3em">🚨</span>
+  <span id="alertText"><strong>ALERTA:</strong> Se detectaron sectores en estado CRÍTICO que requieren activación inmediata de protocolos.</span>
+</div>
+
+<!-- MAIN -->
+<div class="wrap">
+
+  <!-- KPI STRIP -->
+  <div class="kpi-strip">
+    <div class="kpi-card" style="--kpi-color:var(--gold)">
+      <div class="kpi-icon">📋</div>
+      <div class="kpi-label">Total levantamientos</div>
+      <div class="kpi-num" id="kpi-total">—</div>
+      <div class="kpi-sub">fichas registradas</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--crit)">
+      <div class="kpi-icon">🔴</div>
+      <div class="kpi-label">Urgencias críticas</div>
+      <div class="kpi-num" id="kpi-criticas">—</div>
+      <div class="kpi-sub" id="kpi-criticas-pct">— del total</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--alta)">
+      <div class="kpi-icon">🟠</div>
+      <div class="kpi-label">Urgencias altas</div>
+      <div class="kpi-num" id="kpi-altas">—</div>
+      <div class="kpi-sub" id="kpi-altas-pct">— del total</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--cobalt);--kpi-color:#4da6ff">
+      <div class="kpi-icon">📊</div>
+      <div class="kpi-label">Score promedio</div>
+      <div class="kpi-num" id="kpi-score">—</div>
+      <div class="kpi-sub">de 24 puntos máx.</div>
+    </div>
+    <div class="kpi-card" style="--kpi-color:var(--baja)">
+      <div class="kpi-icon">🏘️</div>
+      <div class="kpi-label">Sectores cubiertos</div>
+      <div class="kpi-num" id="kpi-sectores">—</div>
+      <div class="kpi-sub">en Rebolo</div>
+    </div>
+  </div>
+
+  <!-- ROW MAPA + SEMÁFORO -->
+  <div class="grid-main">
+
+    <!-- MAPA -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-left">
+          <div class="c-ico ci-blue">🗺️</div>
+          <div><div class="card-tag">Georreferenciación</div><div class="card-title">Distribución espacial de levantamientos · Barrio Rebolo</div></div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--baja)">⬤ Baja</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--media)">⬤ Media</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--alta)">⬤ Alta</span>
+          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--crit)">⬤ Crítica</span>
+        </div>
+      </div>
+      <div id="map"></div>
+    </div>
+
+    <!-- SEMÁFORO + DONUT -->
+    <div style="display:flex;flex-direction:column;gap:18px;">
+
+      <!-- SEMÁFORO -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-hdr-left">
+            <div class="c-ico ci-gold">🚦</div>
+            <div><div class="card-tag">Diagnóstico general</div><div class="card-title">Estado del Barrio Rebolo</div></div>
+          </div>
+        </div>
+        <div class="semaforo-wrap">
+          <div class="sem-ring critica" id="semRing">
+            <div class="sem-ico" id="semIco">🔴</div>
+            <div class="sem-level" id="semLevel">CRÍTICA</div>
+          </div>
+          <div class="sem-score" id="semScore">—</div>
+          <div class="sem-score-lbl">Score promedio / 24 puntos</div>
+          <div class="sem-desc" id="semDesc" style="margin-top:10px;">Cargando diagnóstico...</div>
+        </div>
+      </div>
+
+      <!-- DONUT -->
+      <div class="card">
+        <div class="card-hdr">
+          <div class="card-hdr-left">
+            <div class="c-ico ci-gold">📊</div>
+            <div><div class="card-tag">Distribución</div><div class="card-title">Niveles de urgencia</div></div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="donut-wrap">
+            <canvas id="donutChart"></canvas>
+            <div class="donut-center">
+              <div class="donut-center-num" id="donutTotal">—</div>
+              <div class="donut-center-lbl">registros</div>
+            </div>
+          </div>
+          <div class="donut-legend" id="donutLegend"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ROW MANIFESTACIONES + TENDENCIA -->
+  <div class="grid-mid">
+
+    <!-- MANIFESTACIONES -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-left">
+          <div class="c-ico ci-red">⚠️</div>
+          <div><div class="card-tag">Las 8 manifestaciones</div><div class="card-title">Nivel de presencia promedio en Rebolo</div></div>
+        </div>
+        <span class="card-badge" style="background:var(--crit-bg);color:#fca5a5;font-size:.68em;">0=No presente · 3=Alta</span>
+      </div>
+      <div class="card-body" id="manifBars">
+        <div class="empty-state"><div class="es-ico">📊</div><p>Cargando datos...</p></div>
+      </div>
+    </div>
+
+    <!-- TENDENCIA TEMPORAL -->
+    <div class="card">
+      <div class="card-hdr">
+        <div class="card-hdr-left">
+          <div class="c-ico ci-gold">📈</div>
+          <div><div class="card-tag">Tendencia</div><div class="card-title">Levantamientos por período</div></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="chart-wrap" style="height:260px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ALERTAS ACTIVAS -->
+  <div class="card" style="margin-bottom:18px;">
+    <div class="card-hdr">
+      <div class="card-hdr-left">
+        <div class="c-ico ci-red">🚨</div>
+        <div><div class="card-tag">Alertas activas</div><div class="card-title">Registros en estado CRÍTICO y ALTO — requieren acción institucional</div></div>
+      </div>
+      <span class="card-badge" id="alertasCount" style="background:var(--crit-bg);color:#fca5a5;">0 alertas</span>
+    </div>
+    <div class="card-body" style="padding:0;overflow-x:auto;">
+      <table class="data-table">
+        <thead><tr>
+          <th>Código</th><th>Fecha</th><th>Sector</th>
+          <th>Score</th><th>M4</th><th>M5</th><th>M7</th>
+          <th>Urgencia</th><th>Acciones activadas</th>
+        </tr></thead>
+        <tbody id="alertasBody">
+          <tr><td colspan="9" style="text-align:center;padding:24px;color:var(--ink3);">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RESPUESTA ESTRATÉGICA -->
+  <div class="card">
+    <div class="card-hdr">
+      <div class="card-hdr-left">
+        <div class="c-ico ci-gold">🎯</div>
+        <div><div class="card-tag">Motor de respuesta estratégica</div><div class="card-title">Recomendaciones automáticas basadas en el diagnóstico territorial</div></div>
+      </div>
+      <span class="card-badge" style="background:var(--gold-bg);color:var(--gold);font-size:.7em;">Generadas desde los datos PP8</span>
+    </div>
+    <div class="card-body">
+      <div class="resp-grid" id="respGrid">
+        <div class="empty-state"><div class="es-ico">🎯</div><p>Cargando análisis estratégico...</p></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<div class="footer">
+  <div><strong>VIRTUS GLOBAL</strong> · Tablero de Control PP8 · Barrio Rebolo · OSCC Barranquilla 2026</div>
+  <div>Actualización automática cada 5 minutos · Datos desde Google Sheets · Uso institucional</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════
+let SCRIPT_URL = localStorage.getItem('pp8_script_url') || '';
+const REFRESH_INTERVAL = 5 * 60 * 1000;
+const REBOLO = { lat: 10.9667, lng: -74.7833, zoom: 15 };
+const GEOJSON_URL = 'https://raw.githubusercontent.com/panchicore/barranquilla_geojson/main/BAQ_Neighborhood_Blocks.geojson';
+
+// ═══════════════════════════════════════════════════════
+// LEVEL MAPPING
+// ═══════════════════════════════════════════════════════
+const LEVEL_SCORE = { 'No presente':0, 'Leve':1, 'Moderada':2, 'Alta':3 };
+const M_FIELDS = [
+  'M1_NIVEL_SERV_PUBLICOS','M2_NIVEL_INDISCIPLINA_AUSENTE',
+  'M3_NIVEL_SILENCIO_DELITOS','M4_NIVEL_RECONOC_AUTORIDAD',
+  'M5_NIVEL_SICARIATO','M6_NIVEL_OCUPACION_ILEGAL',
+  'M7_NIVEL_DESPLAZAMIENTO','M8_NIVEL_SIN_DEMANDA_INST'
+];
+const M_LABELS = [
+  'Servicios Públicos','Indisciplina Ausente',
+  'Silencio ante Delitos','Autoridad Reconocida',
+  'Homicidios/Sicariato','Ocupación Ilegal',
+  'Desplazamiento','Sin Demanda Inst.'
+];
+const M_COLORS = [
+  '#4da6ff','#f97316','#dc2626','#e63946',
+  '#8b0000','#f59e0b','#ef4444','#0057A8'
+];
+const URG_COLOR = { BAJA:'#10b981', MEDIA:'#f59e0b', ALTA:'#f97316', 'CRÍTICA':'#dc2626' };
+const URG_CLASS = { BAJA:'up-baja', MEDIA:'up-media', ALTA:'up-alta', 'CRÍTICA':'up-critica' };
+
+// ═══════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════
+let state = { raw:[], loading:false, lastUpdate:null, error:null };
+let charts = {};
+let leafletMap = null;
+let markersLayer = null;
+let refreshTimer = null;
+
+// ═══════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════
+function getUrgKey(str) {
+  if (!str) return 'BAJA';
+  const s = str.toUpperCase();
+  if (s.includes('CRÍTICA') || s.includes('CRITICA')) return 'CRÍTICA';
+  if (s.includes('ALTA')) return 'ALTA';
+  if (s.includes('MEDIA')) return 'MEDIA';
+  return 'BAJA';
+}
+function lvl(v) { return LEVEL_SCORE[v] || 0; }
+function avg(arr) { return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function pct(n,t) { return t ? Math.round(n/t*100) : 0; }
+function fmtDate(d) { if(!d) return '—'; return String(d).slice(0,10); }
+function trunc(s,n) { if(!s) return '—'; return String(s).length>n ? String(s).slice(0,n)+'…' : String(s); }
+
+// ═══════════════════════════════════════════════════════
+// CONFIG MODAL
+// ═══════════════════════════════════════════════════════
+function abrirConfig() {
+  document.getElementById('urlInput').value = SCRIPT_URL;
+  document.getElementById('configModal').classList.add('vis');
+}
+function cerrarConfig() { document.getElementById('configModal').classList.remove('vis'); }
+function guardarConfig() {
+  const url = document.getElementById('urlInput').value.trim();
+  if (url) { SCRIPT_URL = url; localStorage.setItem('pp8_script_url', url); }
+  cerrarConfig();
+  cargarDatos();
+}
+
+// ═══════════════════════════════════════════════════════
+// FETCH DATA — JSONP first (works from file:// and any origin)
+// ═══════════════════════════════════════════════════════
+
+// JSONP helper — bypasses CORS from local files
+function fetchJSONP(url) {
+  return new Promise((resolve, reject) => {
+    const cbName = '__pp8cb' + Date.now();
+    const timer  = setTimeout(() => { cleanup(); reject(new Error('Timeout (15s)')); }, 15000);
+    function cleanup() {
+      delete window[cbName];
+      const s = document.getElementById('_pp8jsonp');
+      if (s && s.parentNode) s.parentNode.removeChild(s);
+    }
+    window[cbName] = function(data) { clearTimeout(timer); cleanup(); resolve(data); };
+    const s = document.createElement('script');
+    s.id = '_pp8jsonp';
+    s.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error('Script load error')); };
+    s.src = url + '&callback=' + cbName;
+    document.head.appendChild(s);
+  });
+}
+
+async function cargarDatos() {
+  if (!SCRIPT_URL) { abrirConfig(); return; }
+  if (state.loading) return;
+
+  state.loading = true;
+  const btn = document.getElementById('btnRefresh');
+  btn.disabled = true; btn.classList.add('spinning');
+  setStatus('loading','Conectando...');
+  document.getElementById('loadingOverlay').classList.add('vis');
+
+  const sep     = SCRIPT_URL.includes('?') ? '&' : '?';
+  const baseUrl = SCRIPT_URL + sep + 'action=getData';
+
+  let json = null;
+  let lastErr = '';
+
+  // Intento 1: JSONP (siempre funciona desde file:// y HTTPS)
+  try {
+    json = await fetchJSONP(baseUrl);
+  } catch(e1) {
+    lastErr = 'JSONP: ' + e1.message;
+    console.warn('JSONP falló, intentando fetch():', e1.message);
+    // Intento 2: fetch normal (funciona cuando el tablero está en HTTPS)
+    try {
+      const resp = await fetch(baseUrl, { cache:'no-store' });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      json = await resp.json();
+    } catch(e2) {
+      lastErr += ' | fetch: ' + e2.message;
+    }
+  }
+
+  if (json && json.status === 'ok') {
+    state.raw       = json.data || [];
+    state.lastUpdate = new Date();
+    state.error      = null;
+    setStatus('ok', '● En línea · ' + state.raw.length + ' registros');
+    document.getElementById('lastUpdateLabel').textContent =
+      'Actualizado: ' + state.lastUpdate.toLocaleTimeString('es-CO');
+    renderTodo();
+  } else {
+    state.error = json ? (json.mensaje || 'Respuesta inválida') : lastErr;
+    setStatus('err', '● Error · ' + (state.error.slice(0,40)));
+    console.error('PP8 error:', state.error);
+    // Mostrar hint útil en el overlay
+    document.querySelector('.loading-text').textContent =
+      '⚠ No se pudo conectar. Verifica la URL y que el Apps Script esté en v3.';
+    setTimeout(() => {
+      document.getElementById('loadingOverlay').classList.remove('vis');
+    }, 3000);
+  }
+
+  state.loading = false;
+  btn.disabled  = false;
+  btn.classList.remove('spinning');
+  document.getElementById('loadingOverlay').classList.remove('vis');
+
+  if (refreshTimer) clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(cargarDatos, REFRESH_INTERVAL);
+}
+
+function setStatus(tipo, txt) {
+  const el = document.getElementById('statusBadge');
+  el.className = 'tb-status' + (tipo==='err'?' err':tipo==='loading'?' loading':'');
+  document.getElementById('statusText').textContent = txt;
+}
+function mostrarEstadoVacio() { /* already handled by empty render */ }
+
+// ═══════════════════════════════════════════════════════
+// COMPUTE METRICS
+// ═══════════════════════════════════════════════════════
+function computeMetrics(data) {
+  const total = data.length;
+  if (!total) return null;
+
+  const urgDist = { BAJA:0, MEDIA:0, ALTA:0, 'CRÍTICA':0 };
+  data.forEach(r => {
+    const k = getUrgKey(r.URGENCIA_CALCULADA_AUTO || r.URGENCIA_INTERVENCION);
+    urgDist[k]++;
+  });
+
+  const scores = data.map(r => parseFloat(r.SCORE_MANIFESTACIONES_0_8)||0);
+  const avgScore = avg(scores);
+
+  const mAvgs = M_FIELDS.map(f => avg(data.map(r => lvl(r[f]))));
+
+  const sectors = [...new Set(data.map(r => {
+    const b = r.BARRIO_SECTOR || '';
+    return b.includes('—') ? b.split('—')[1].trim() : b.trim();
+  }).filter(Boolean))];
+
+  // Timeline by month
+  const byMonth = {};
+  data.forEach(r => {
+    const d = r.FECHA_LEVANTAMIENTO || r.TIMESTAMP_REGISTRO || '';
+    const m = String(d).slice(0,7);
+    if (!m || m==='') return;
+    if (!byMonth[m]) byMonth[m] = { BAJA:0,MEDIA:0,ALTA:0,'CRÍTICA':0 };
+    const k = getUrgKey(r.URGENCIA_CALCULADA_AUTO || r.URGENCIA_INTERVENCION);
+    byMonth[m][k]++;
+  });
+
+  const mapPoints = data
+    .filter(r => r.LATITUD && r.LONGITUD && !isNaN(r.LATITUD) && !isNaN(r.LONGITUD))
+    .map(r => ({
+      lat: parseFloat(r.LATITUD), lng: parseFloat(r.LONGITUD),
+      urgencia: getUrgKey(r.URGENCIA_CALCULADA_AUTO || r.URGENCIA_INTERVENCION),
+      codigo: r.CODIGO_FICHA, barrio: r.BARRIO_SECTOR,
+      fecha: r.FECHA_LEVANTAMIENTO, score: r.SCORE_MANIFESTACIONES_0_8,
+      conclusion: trunc(r.CONCLUSION_GENERAL, 180)
+    }));
+
+  const alertas = data
+    .filter(r => ['CRÍTICA','ALTA'].includes(getUrgKey(r.URGENCIA_CALCULADA_AUTO||r.URGENCIA_INTERVENCION)))
+    .sort((a,b) => {
+      const o = {'CRÍTICA':0,'ALTA':1};
+      return o[getUrgKey(a.URGENCIA_CALCULADA_AUTO||a.URGENCIA_INTERVENCION)] -
+             o[getUrgKey(b.URGENCIA_CALCULADA_AUTO||b.URGENCIA_INTERVENCION)];
+    });
+
+  const strategicResp = computeStrategicResponse(data, mAvgs, urgDist, total);
+
+  return { total, urgDist, avgScore, mAvgs, sectors, byMonth, mapPoints, alertas, strategicResp };
+}
+
+// ═══════════════════════════════════════════════════════
+// STRATEGIC RESPONSE ENGINE
+// ═══════════════════════════════════════════════════════
+function computeStrategicResponse(data, mAvgs, urgDist, total) {
+  const resp = [];
+  const pctCrit = pct(urgDist['CRÍTICA'], total);
+  const pctAlta = pct(urgDist.ALTA, total);
+
+  if (mAvgs[6] >= 1.8) resp.push({
+    priority:'CRÍTICA', cls:'rc-crit',
+    entity:'SIJIN + OSCC + Unidad para Víctimas',
+    title:'Protocolo urgente: Desplazamiento intraurbano activo',
+    action:'Activar protocolo de emergencia por desplazamiento. Notificar a la Defensoría del Pueblo y coordinar con ICBF para NNA afectados. Establecer canal de denuncia segura con las familias en riesgo.',
+    metric:`M7 promedio: ${mAvgs[6].toFixed(2)}/3 — ${Math.round(data.filter(r=>r.M7_NIVEL_DESPLAZAMIENTO==='Alta').length)} registros con nivel Alto`
+  });
+
+  if (mAvgs[4] >= 1.5) resp.push({
+    priority:'CRÍTICA', cls:'rc-crit',
+    entity:'Fiscalía CTI + SIJIN + GAULA',
+    title:'Operativo por homicidios en modalidad sicariato',
+    action:'Reportar patrones estadísticos a Fiscalía CTI con los datos del SIEDCO cruzados con los levantamientos PP8. Solicitar operativo conjunto SIJIN-MEVAL. Revisar si hay vínculos con estructuras de mayor escala.',
+    metric:`M5 promedio: ${mAvgs[4].toFixed(2)}/3 · ${Math.round(data.reduce((s,r)=>s+(parseFloat(r.M5_NUM_HOMICIDIOS)||0),0))} homicidios totales documentados`
+  });
+
+  if (mAvgs[3] >= 2) resp.push({
+    priority:'ALTA', cls:'rc-alta',
+    entity:'OSCC + Alcaldía Local + Policía',
+    title:'Restitución urgente de presencia y legitimidad institucional',
+    action:'Mesa intersectorial de emergencia para recuperar legitimidad del Estado en el sector. Programa intensivo de participación comunitaria con JAC. Reuniones de confianza con líderes identificados. Patrullaje visible y humanizado.',
+    metric:`M4 promedio: ${mAvgs[3].toFixed(2)}/3 — La comunidad reconoce al grupo ilegal como autoridad en ${pct(data.filter(r=>['Moderada','Alta'].includes(r.M4_NIVEL_RECONOC_AUTORIDAD)).length,total)}% de los sectores`
+  });
+
+  if (mAvgs[0] >= 1.5) resp.push({
+    priority:'ALTA', cls:'rc-alta',
+    entity:'Air-e + Triple A + Alcaldía Local',
+    title:'Coordinación estratégica con operadores de servicios públicos',
+    action:'Reunión urgente con Air-e y Triple A para diseñar estrategia de reingreso al sector con acompañamiento institucional. Documentar las limitaciones específicas por zona para la solicitud de patrullaje especial.',
+    metric:`M1 promedio: ${mAvgs[0].toFixed(2)}/3 · Operadores limitados en ${pct(data.filter(r=>['Moderada','Alta'].includes(r.M1_NIVEL_SERV_PUBLICOS)).length,total)}% del área`
+  });
+
+  if (mAvgs[2] >= 1.8 || mAvgs[7] >= 1.8) resp.push({
+    priority:'ALTA', cls:'rc-alta',
+    entity:'Policía Nacional + OSCC + Comisaría',
+    title:'Programa de denuncia segura y confianza ciudadana',
+    action:'Implementar canales anónimos de denuncia accesibles desde móvil. Sesiones de confianza con líderes JAC y mujeres del sector. Refuerzo de patrullaje comunitario visible. Articular con Defensoría del Pueblo para campaña de derechos.',
+    metric:`Silencio ante delitos (M3): ${mAvgs[2].toFixed(2)}/3 · Sin demanda institucional (M8): ${mAvgs[7].toFixed(2)}/3`
+  });
+
+  if (pctCrit >= 15 || (pctCrit + pctAlta) >= 45) resp.push({
+    priority:'MEDIA', cls:'rc-media',
+    entity:'OSCC + Consejo Distrital de Seguridad',
+    title:'Presentación ante el Consejo Distrital de Seguridad',
+    action:`El ${pctCrit}% de registros CRÍTICOS y ${pctAlta}% ALTOS justifican presentación formal ante el Consejo de Seguridad para solicitar asignación de recursos adicionales, operativos sostenidos y seguimiento trimestral en el barrio Rebolo.`,
+    metric:`${urgDist['CRÍTICA']+urgDist.ALTA} de ${total} registros en estado alto o crítico`
+  });
+
+  return resp;
+}
+
+// ═══════════════════════════════════════════════════════
+// RENDER TODO
+// ═══════════════════════════════════════════════════════
+function renderTodo() {
+  const m = computeMetrics(state.raw);
+  if (!m) return;
+
+  renderKPIs(m);
+  renderSemaforo(m);
+  renderDonut(m);
+  renderManifBars(m);
+  renderTrend(m);
+  renderMapPoints(m);
+  renderAlertas(m);
+  renderStrategicResp(m);
+  renderAlertBanner(m);
+}
+
+// KPIs
+function renderKPIs(m) {
+  document.getElementById('kpi-total').textContent = m.total;
+  document.getElementById('kpi-criticas').textContent = m.urgDist['CRÍTICA'];
+  document.getElementById('kpi-criticas-pct').textContent = pct(m.urgDist['CRÍTICA'],m.total) + '% del total';
+  document.getElementById('kpi-altas').textContent = m.urgDist.ALTA;
+  document.getElementById('kpi-altas-pct').textContent = pct(m.urgDist.ALTA,m.total) + '% del total';
+  document.getElementById('kpi-score').textContent = m.avgScore.toFixed(1);
+  document.getElementById('kpi-sectores').textContent = m.sectors.length;
+}
+
+// SEMÁFORO
+function renderSemaforo(m) {
+  const pctCrit = pct(m.urgDist['CRÍTICA'],m.total);
+  const pctAlta = pct(m.urgDist.ALTA,m.total);
+  let nivel, ico, cls, desc;
+
+  if (pctCrit >= 20 || m.avgScore >= 14) {
+    nivel='CRÍTICA'; ico='🔴'; cls='critica';
+    desc=`${pctCrit}% de registros en estado CRÍTICO. El barrio requiere activación inmediata de protocolos de respuesta.`;
+  } else if (pctCrit >= 10 || pctAlta >= 30 || m.avgScore >= 10) {
+    nivel='ALTA'; ico='🟠'; cls='alta';
+    desc=`${pctCrit+pctAlta}% de registros en estado alto o crítico. Intervención prioritaria necesaria.`;
+  } else if (pctAlta >= 15 || m.avgScore >= 6) {
+    nivel='MEDIA'; ico='🟡'; cls='media';
+    desc=`Situación preocupante. ${pctAlta}% de registros en estado ALTO. Intervención programada recomendada.`;
+  } else {
+    nivel='BAJA'; ico='🟢'; cls='baja';
+    desc=`Nivel de control territorial bajo. Monitoreo periódico recomendado.`;
+  }
+
+  const ring = document.getElementById('semRing');
+  ring.className = 'sem-ring ' + cls;
+  document.getElementById('semIco').textContent = ico;
+  document.getElementById('semLevel').textContent = nivel;
+  document.getElementById('semScore').textContent = m.avgScore.toFixed(1) + '/24';
+  document.getElementById('semDesc').textContent = desc;
+}
+
+// DONUT
+function renderDonut(m) {
+  document.getElementById('donutTotal').textContent = m.total;
+  const labels = ['Baja','Media','Alta','Crítica'];
+  const vals = [m.urgDist.BAJA, m.urgDist.MEDIA, m.urgDist.ALTA, m.urgDist['CRÍTICA']];
+  const colors = ['#10b981','#f59e0b','#f97316','#dc2626'];
+
+  if (charts.donut) charts.donut.destroy();
+  charts.donut = new Chart(document.getElementById('donutChart').getContext('2d'), {
+    type: 'doughnut',
+    data: { labels, datasets: [{ data: vals, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+    options: {
+      responsive:true, maintainAspectRatio:true, cutout:'72%',
+      plugins: { legend:{display:false}, tooltip:{
+        callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed,m.total)}%)` }
+      }}
+    }
+  });
+
+  const legend = document.getElementById('donutLegend');
+  legend.innerHTML = labels.map((l,i)=>`
+    <div class="dl-item">
+      <div class="dl-dot" style="background:${colors[i]}"></div>
+      <span class="dl-label">${l}</span>
+      <span class="dl-count">${vals[i]}</span>
+    </div>`).join('');
+}
+
+// MANIFESTATION BARS
+function renderManifBars(m) {
+  const el = document.getElementById('manifBars');
+  el.innerHTML = m.mAvgs.map((v, i) => {
+    const pctBar = (v/3*100).toFixed(0);
+    const color = v >= 2 ? '#dc2626' : v >= 1.5 ? '#f97316' : v >= 1 ? '#f59e0b' : '#10b981';
+    return `<div class="m-row">
+      <div class="m-label">M${i+1} · ${M_LABELS[i]}</div>
+      <div class="m-bar-wrap"><div class="m-bar-fill" style="width:${pctBar}%;background:${color}"></div></div>
+      <div class="m-val" style="color:${color}">${v.toFixed(1)}</div>
+    </div>`;
+  }).join('');
+}
+
+// TREND CHART
+function renderTrend(m) {
+  const months = Object.keys(m.byMonth).sort();
+  if (!months.length) return;
+
+  const datasets = [
+    { label:'Crítica', data: months.map(mo=>m.byMonth[mo]['CRÍTICA']||0), backgroundColor:'#dc2626', stack:'s' },
+    { label:'Alta',    data: months.map(mo=>m.byMonth[mo].ALTA||0),      backgroundColor:'#f97316', stack:'s' },
+    { label:'Media',   data: months.map(mo=>m.byMonth[mo].MEDIA||0),     backgroundColor:'#f59e0b', stack:'s' },
+    { label:'Baja',    data: months.map(mo=>m.byMonth[mo].BAJA||0),      backgroundColor:'#10b981', stack:'s' },
+  ];
+
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type:'bar',
+    data: { labels: months.map(m=>{const p=m.split('-');return `${['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+p[1]]} ${p[0]}`}), datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{ color:'rgba(255,255,255,.6)', font:{size:11,family:'Montserrat'} } }, tooltip:{mode:'index',intersect:false} },
+      scales:{
+        x:{ stacked:true, ticks:{color:'rgba(255,255,255,.4)',font:{size:10}}, grid:{color:'rgba(255,255,255,.05)'} },
+        y:{ stacked:true, ticks:{color:'rgba(255,255,255,.4)',font:{size:10},stepSize:1}, grid:{color:'rgba(255,255,255,.05)'} }
+      }
+    }
+  });
+}
+
+// MAP POINTS
+function renderMapPoints(m) {
+  if (!leafletMap) return;
+  if (markersLayer) leafletMap.removeLayer(markersLayer);
+  markersLayer = L.layerGroup();
+
+  m.mapPoints.forEach(pt => {
+    const color = URG_COLOR[pt.urgencia] || '#10b981';
+    const marker = L.circleMarker([pt.lat, pt.lng], {
+      radius: pt.urgencia === 'CRÍTICA' ? 10 : pt.urgencia === 'ALTA' ? 8 : 6,
+      fillColor: color, color: '#fff', weight: 1.5,
+      opacity: 1, fillOpacity: pt.urgencia === 'CRÍTICA' ? 0.95 : 0.75
+    });
+    marker.bindPopup(`
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;min-width:220px;background:#001a3d;color:#fff;border-radius:8px;padding:12px;">
+        <div style="font-weight:700;color:#C8A84B;margin-bottom:4px;">${pt.codigo}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:8px;">${pt.fecha} · ${pt.barrio}</div>
+        <div style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}55;margin-bottom:8px;">
+          ${pt.urgencia} · Score ${pt.score}/24
+        </div>
+        <div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.5;">${pt.conclusion}</div>
+      </div>`, { maxWidth: 280, className: 'pp8-popup' }
+    );
+    markersLayer.addLayer(marker);
+  });
+
+  markersLayer.addTo(leafletMap);
+}
+
+// ALERTAS TABLE
+function renderAlertas(m) {
+  document.getElementById('alertasCount').textContent = m.alertas.length + ' alertas';
+  const tbody = document.getElementById('alertasBody');
+  if (!m.alertas.length) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--ink3);">Sin alertas activas</td></tr>';
+    return;
+  }
+  tbody.innerHTML = m.alertas.slice(0, 20).map(r => {
+    const uk = getUrgKey(r.URGENCIA_CALCULADA_AUTO||r.URGENCIA_INTERVENCION);
+    const s = parseFloat(r.SCORE_MANIFESTACIONES_0_8)||0;
+    const pctS = (s/24*100).toFixed(0);
+    return `<tr>
+      <td class="mono">${r.CODIGO_FICHA||'—'}</td>
+      <td>${fmtDate(r.FECHA_LEVANTAMIENTO)}</td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;">${trunc(r.BARRIO_SECTOR,35)}</td>
+      <td>
+        <div class="score-bar-wrap">
+          <div class="score-bar"><div class="score-bar-fill" style="width:${pctS}%"></div></div>
+          <span style="font-size:.78em;font-weight:700;min-width:28px;color:var(--ink)">${s}</span>
+        </div>
+      </td>
+      <td style="color:${URG_COLOR[getUrgKey(r.M4_NIVEL_RECONOC_AUTORIDAD)]||'var(--ink3)'};">${r.M4_NIVEL_RECONOC_AUTORIDAD||'—'}</td>
+      <td style="color:${URG_COLOR[getUrgKey(r.M5_NIVEL_SICARIATO)]||'var(--ink3)'};">${r.M5_NIVEL_SICARIATO||'—'}</td>
+      <td style="color:${URG_COLOR[getUrgKey(r.M7_NIVEL_DESPLAZAMIENTO)]||'var(--ink3)'};">${r.M7_NIVEL_DESPLAZAMIENTO||'—'}</td>
+      <td><span class="urg-pill ${URG_CLASS[uk]||'up-baja'}">${uk}</span></td>
+      <td style="max-width:200px;font-size:.75em;color:var(--ink3);">${trunc(r.ACCIONES_A_ACTIVAR,80)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// STRATEGIC RESPONSE
+function renderStrategicResp(m) {
+  const el = document.getElementById('respGrid');
+  if (!m.strategicResp.length) {
+    el.innerHTML = '<div class="empty-state"><div class="es-ico">✅</div><p>Sin alertas estratégicas críticas en este período.</p></div>';
+    return;
+  }
+  el.innerHTML = m.strategicResp.map((r,i) => `
+    <div class="resp-card ${r.cls}">
+      <div class="resp-num">${String(i+1).padStart(2,'0')}</div>
+      <div class="resp-priority">${r.priority} PRIORIDAD</div>
+      <div class="resp-title">${r.title}</div>
+      <div class="resp-entity">🏛️ ${r.entity}</div>
+      <div class="resp-action">${r.action}</div>
+      <div class="resp-metric">📊 ${r.metric}</div>
+    </div>`).join('');
+}
+
+// ALERT BANNER
+function renderAlertBanner(m) {
+  const n = m.urgDist['CRÍTICA'];
+  const banner = document.getElementById('alertBanner');
+  if (n > 0) {
+    banner.classList.add('vis');
+    document.getElementById('alertText').innerHTML =
+      `<strong>🚨 ALERTA:</strong> Se detectaron <strong>${n} registros CRÍTICOS</strong> en el Barrio Rebolo que requieren activación inmediata de protocolos de respuesta institucional. Score promedio: <strong>${m.avgScore.toFixed(1)}/24</strong>.`;
+  } else {
+    banner.classList.remove('vis');
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// MAP INIT
+// ═══════════════════════════════════════════════════════
+function initMap() {
+  leafletMap = L.map('map', { center:[REBOLO.lat, REBOLO.lng], zoom:REBOLO.zoom, zoomControl:true });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution:'© OpenStreetMap © CARTO',
+    maxZoom:19, subdomains:'abcd'
+  }).addTo(leafletMap);
+
+  // Add popup CSS
+  const style = document.createElement('style');
+  style.textContent = `.pp8-popup .leaflet-popup-content-wrapper{background:transparent;box-shadow:0 4px 20px rgba(0,0,0,.6);border:1px solid rgba(200,168,75,.3);padding:0;}.pp8-popup .leaflet-popup-tip{background:#001a3d;}.pp8-popup .leaflet-popup-content{margin:0;}`;
+  document.head.appendChild(style);
+
+  // Try to load Rebolo polygon from GeoJSON
+  loadReboloPolygon();
+}
+
+async function loadReboloPolygon() {
+  try {
+    const resp = await fetch(GEOJSON_URL, { cache: 'force-cache' });
+    const geojson = await resp.json();
+    const rebolo = {
+      type:'FeatureCollection',
+      features: geojson.features.filter(f => {
+        const p = f.properties||{};
+        const name = (p.BARRIO||p.Barrio||p.barrio||p.NOMBRE||p.nombre||p.SECTOR||'').toUpperCase();
+        return name.includes('REBOLO');
+      })
+    };
+    if (rebolo.features.length > 0) {
+      L.geoJSON(rebolo, {
+        style:{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.07, dashArray:'6 3' }
+      }).addTo(leafletMap);
+      leafletMap.fitBounds(L.geoJSON(rebolo).getBounds(), { padding:[30,30] });
+    } else {
+      addManualPolygon();
+    }
+  } catch(e) {
+    console.warn('GeoJSON no cargó, usando polígono manual:', e.message);
+    addManualPolygon();
+  }
+}
+
+function addManualPolygon() {
+  const coords = [
+    [10.9750,-74.7920],[10.9750,-74.7755],[10.9700,-74.7745],
+    [10.9660,-74.7755],[10.9600,-74.7780],[10.9560,-74.7820],
+    [10.9560,-74.7920],[10.9620,-74.7930],[10.9750,-74.7920]
+  ];
+  L.polygon(coords,{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.07, dashArray:'6 3' })
+   .addTo(leafletMap);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  initMap();
+  if (SCRIPT_URL) {
+    cargarDatos();
+  } else {
+    setStatus('err', '● Sin configurar');
+    setTimeout(abrirConfig, 800);
+  }
+});
+</script>
+</body>
+</html>
