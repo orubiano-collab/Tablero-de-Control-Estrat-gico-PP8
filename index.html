@@ -472,7 +472,7 @@ canvas{max-width:100%;}
 let SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbykcqdIWNq0jor_Y0xbSDvDaO_HmxJBkbEqlmQwxgAcjdtZ-_YVB-tm6L1wSJTvSKLH/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000;
 const REBOLO = { lat: 10.9667, lng: -74.7833, zoom: 15 };
-const GEOJSON_URL = 'https://raw.githubusercontent.com/panchicore/barranquilla_geojson/main/BAQ_Neighborhood_Blocks.geojson';
+const GEOJSON_URL = 'https://raw.githubusercontent.com/panchicore/barranquilla_geojson/refs/heads/main/BAQ_Neighborhood_Blocks';
 
 // ═══════════════════════════════════════════════════════
 // LEVEL MAPPING
@@ -1046,28 +1046,45 @@ async function loadReboloPolygon() {
   try {
     const resp = await fetch(GEOJSON_URL, { cache: 'force-cache' });
     const geojson = await resp.json();
-    // Buscar Rebolo en todas las propiedades del GeoJSON
+
+    // Filtrar exactamente por BARRIO === 'REBOLO'
     const rebolo = {
-      type:'FeatureCollection',
-      features: geojson.features.filter(f => {
-        const p = f.properties||{};
-        const allVals = Object.values(p).join(' ').toUpperCase();
-        return allVals.includes('REBOLO');
-      })
+      type: 'FeatureCollection',
+      features: geojson.features.filter(f => f.properties?.BARRIO === 'REBOLO')
     };
-    if (rebolo.features.length > 0) {
-      L.geoJSON(rebolo, {
-        style:{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.08, dashArray:'8 4' },
-        onEachFeature:(f,layer)=>{
-          const p=f.properties||{};
-          const nm=p.BARRIO||p.Nombre||p.SECTOR||'Rebolo';
-          layer.bindTooltip('<b style="font-family:Montserrat;color:#C8A84B">'+nm+'</b>', {className:'rebolo-label'});
-        }
-      }).addTo(leafletMap);
-      leafletMap.fitBounds(L.geoJSON(rebolo).getBounds(), { padding:[40,40] });
-    } else {
-      addManualPolygon();
-    }
+
+    if (rebolo.features.length === 0) { addManualPolygon(); return; }
+
+    // Capa de relleno general del barrio (todos los sectores)
+    L.geoJSON(rebolo, {
+      style: {
+        color: '#C8A84B', weight: 2,
+        fillColor: '#C8A84B', fillOpacity: 0.07,
+        dashArray: '6 3'
+      }
+    }).addTo(leafletMap);
+
+    // Capa de sectores individuales con hover y etiqueta
+    const sectoresLayer = L.geoJSON(rebolo, {
+      style: {
+        color: 'rgba(200,168,75,0.5)', weight: 1,
+        fillColor: 'transparent', fillOpacity: 0
+      },
+      onEachFeature: (f, layer) => {
+        const s = f.properties.SECTOR || '';
+        const area = (f.properties.Shape__Area / 10000).toFixed(2); // ha
+        layer.bindTooltip(
+          `<b style="font-family:Montserrat;color:#C8A84B">Rebolo · Sector ${s}</b>` +
+          `<br><span style="font-size:11px;color:#aaa">Área: ${area} ha · Localidad Suroriente</span>`,
+          { className: 'rebolo-label', sticky: true }
+        );
+        layer.on('mouseover', () => layer.setStyle({ fillColor: '#C8A84B', fillOpacity: 0.15, weight: 2 }));
+        layer.on('mouseout',  () => layer.setStyle({ fillColor: 'transparent', fillOpacity: 0, weight: 1 }));
+      }
+    }).addTo(leafletMap);
+
+    leafletMap.fitBounds(sectoresLayer.getBounds(), { padding: [30, 30] });
+
   } catch(e) {
     console.warn('GeoJSON no cargó, usando polígono manual:', e.message);
     addManualPolygon();
