@@ -251,18 +251,7 @@ canvas{max-width:100%;}
   <div class="loading-text">Cargando datos desde Google Sheets...</div>
 </div>
 
-<!-- CONFIG MODAL -->
-<div class="modal-bg" id="configModal">
-  <div class="modal">
-    <h2>⚙️ Configurar conexión al Apps Script</h2>
-    <p>Ingresa la URL de tu Apps Script desplegado como Web App. Es la misma URL que usas en el formulario PP8, pero ahora debe ser la versión v2 que sirve datos (<code>?action=getData</code>).</p>
-    <input type="text" id="urlInput" placeholder="https://script.google.com/macros/s/...exec">
-    <div class="modal-btns">
-      <button class="btn-modal-cancel" onclick="cerrarConfig()">Cancelar</button>
-      <button class="btn-modal-save" onclick="guardarConfig()">Guardar y conectar</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- TOPBAR -->
 <div class="topbar">
@@ -283,7 +272,7 @@ canvas{max-width:100%;}
     <button class="btn-refresh" id="btnRefresh" onclick="cargarDatos()">
       <span class="icon">↻</span><span class="spin">⟳</span> Actualizar
     </button>
-    <button class="btn-refresh" onclick="abrirConfig()" style="background:rgba(0,87,168,.15);border-color:rgba(0,87,168,.3);color:#93c5fd;">⚙️ Config</button>
+
   </div>
 </div>
 
@@ -341,10 +330,12 @@ canvas{max-width:100%;}
           <div><div class="card-tag">Georreferenciación</div><div class="card-title">Distribución espacial de levantamientos · Barrio Rebolo</div></div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--baja)">⬤ Baja</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--media)">⬤ Media</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--alta)">⬤ Alta</span>
-          <span style="display:flex;align-items:center;gap:4px;font-size:.7em;color:var(--crit)">⬤ Crítica</span>
+          <span style="font-size:.7em;color:var(--baja)">⬤ Baja</span>
+          <span style="font-size:.7em;color:var(--media)">⬤ Media</span>
+          <span style="font-size:.7em;color:var(--alta)">⬤ Alta</span>
+          <span style="font-size:.7em;color:var(--crit)">⬤ Crítica</span>
+          <span style="font-size:.7em;color:var(--ink3)">|</span>
+          <span id="mapLegendCounts" style="font-size:.7em;color:var(--ink3);">cargando...</span>
         </div>
       </div>
       <div id="map"></div>
@@ -478,7 +469,7 @@ canvas{max-width:100%;}
 // ═══════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════
-let SCRIPT_URL = localStorage.getItem('pp8_script_url') || '';
+let SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbykcqdIWNq0jor_Y0xbSDvDaO_HmxJBkbEqlmQwxgAcjdtZ-_YVB-tm6L1wSJTvSKLH/exec';
 const REFRESH_INTERVAL = 5 * 60 * 1000;
 const REBOLO = { lat: 10.9667, lng: -74.7833, zoom: 15 };
 const GEOJSON_URL = 'https://raw.githubusercontent.com/panchicore/barranquilla_geojson/main/BAQ_Neighborhood_Blocks.geojson';
@@ -571,7 +562,7 @@ function fetchJSONP(url) {
 }
 
 async function cargarDatos() {
-  if (!SCRIPT_URL) { abrirConfig(); return; }
+
   if (state.loading) return;
 
   state.loading = true;
@@ -886,27 +877,87 @@ function renderMapPoints(m) {
   if (markersLayer) leafletMap.removeLayer(markersLayer);
   markersLayer = L.layerGroup();
 
-  m.mapPoints.forEach(pt => {
-    const color = URG_COLOR[pt.urgencia] || '#10b981';
+  // Add CSS for pulse animation on critical markers
+  if (!document.getElementById('_mapCSS')) {
+    const s = document.createElement('style');
+    s.id = '_mapCSS';
+    s.textContent = `
+      @keyframes mapPulse {
+        0%   { transform:scale(1);   opacity:.9; }
+        50%  { transform:scale(1.5); opacity:.3; }
+        100% { transform:scale(1);   opacity:.9; }
+      }
+      .pp8-popup .leaflet-popup-content-wrapper {
+        background:transparent;padding:0;
+        box-shadow:0 4px 20px rgba(0,0,0,.7);
+        border:1px solid rgba(200,168,75,.35);border-radius:10px;
+      }
+      .pp8-popup .leaflet-popup-tip { background:#001833; }
+      .pp8-popup .leaflet-popup-content { margin:0; }
+    `;
+    document.head.appendChild(s);
+  }
+
+  // Group by urgencia for count display
+  const counts = {};
+  m.mapPoints.forEach(pt => { counts[pt.urgencia] = (counts[pt.urgencia]||0)+1; });
+
+  m.mapPoints.forEach((pt, idx) => {
+    const color  = URG_COLOR[pt.urgencia] || '#10b981';
+    const isCrit = pt.urgencia === 'CRÍTICA';
+    const isAlta = pt.urgencia === 'ALTA';
+    const r      = isCrit ? 11 : isAlta ? 9 : 7;
+
+    // Main marker
     const marker = L.circleMarker([pt.lat, pt.lng], {
-      radius: pt.urgencia === 'CRÍTICA' ? 10 : pt.urgencia === 'ALTA' ? 8 : 6,
-      fillColor: color, color: '#fff', weight: 1.5,
-      opacity: 1, fillOpacity: pt.urgencia === 'CRÍTICA' ? 0.95 : 0.75
+      radius:      r,
+      fillColor:   color,
+      color:       isCrit ? '#fff' : 'rgba(255,255,255,.6)',
+      weight:      isCrit ? 2 : 1.5,
+      opacity:     1,
+      fillOpacity: isCrit ? 0.95 : isAlta ? 0.85 : 0.72,
+      className:   isCrit ? 'marker-crit' : ''
     });
+
+    // Popup rico
+    const scoreNum = parseFloat(pt.score)||0;
+    const scoreBar = '<div style="background:rgba(255,255,255,.1);border-radius:3px;height:5px;width:100%;overflow:hidden;margin-top:5px;"><div style="background:linear-gradient(90deg,#10b981,#f59e0b,#dc2626);width:'+Math.round(scoreNum/24*100)+'%;height:100%;border-radius:3px;"></div></div>';
+
     marker.bindPopup(`
-      <div style="font-family:Montserrat,sans-serif;font-size:12px;min-width:220px;background:#001a3d;color:#fff;border-radius:8px;padding:12px;">
-        <div style="font-weight:700;color:#C8A84B;margin-bottom:4px;">${pt.codigo}</div>
-        <div style="font-size:11px;color:rgba(255,255,255,.6);margin-bottom:8px;">${pt.fecha} · ${pt.barrio}</div>
-        <div style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:${color}22;color:${color};border:1px solid ${color}55;margin-bottom:8px;">
-          ${pt.urgencia} · Score ${pt.score}/24
+      <div style="font-family:Montserrat,sans-serif;font-size:12px;min-width:240px;background:#001833;color:#fff;border-radius:10px;padding:14px;">
+        <div style="font-weight:800;color:#C8A84B;font-size:13px;margin-bottom:3px;">📋 ${pt.codigo}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.5);margin-bottom:8px;">📅 ${pt.fecha} &nbsp;·&nbsp; 📍 ${(pt.barrio||'').split('—')[1]||pt.barrio||'Rebolo'}</div>
+        <div style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;background:${color}25;color:${color};border:1px solid ${color}50;margin-bottom:8px;">
+          ${pt.urgencia === 'CRÍTICA'?'🔴':pt.urgencia === 'ALTA'?'🟠':pt.urgencia === 'MEDIA'?'🟡':'🟢'} ${pt.urgencia}
         </div>
-        <div style="font-size:11px;color:rgba(255,255,255,.55);line-height:1.5;">${pt.conclusion}</div>
-      </div>`, { maxWidth: 280, className: 'pp8-popup' }
-    );
+        <div style="font-size:11px;color:rgba(255,255,255,.5);margin-bottom:2px;">Score ${scoreNum}/24</div>
+        ${scoreBar}
+        <div style="font-size:10.5px;color:rgba(255,255,255,.55);line-height:1.6;margin-top:8px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px;">${pt.conclusion||''}</div>
+      </div>
+    `, { maxWidth:290, className:'pp8-popup' });
+
+    // Pulse ring for CRITICA
+    if (isCrit) {
+      const ring = L.circleMarker([pt.lat, pt.lng], {
+        radius: r + 8, fillColor:'transparent',
+        color: color, weight: 1.5, opacity: 0.5, fillOpacity: 0,
+        interactive: false, className:'pulse-ring'
+      });
+      markersLayer.addLayer(ring);
+    }
+
     markersLayer.addLayer(marker);
   });
 
   markersLayer.addTo(leafletMap);
+
+  // Update map legend with counts
+  const legEl = document.getElementById('mapLegendCounts');
+  if (legEl) {
+    legEl.innerHTML = Object.entries(counts)
+      .sort((a,b)=>['CRÍTICA','ALTA','MEDIA','BAJA'].indexOf(a[0])-['CRÍTICA','ALTA','MEDIA','BAJA'].indexOf(b[0]))
+      .map(([k,v])=>`<span style="color:${URG_COLOR[k]}">${v}</span>`).join(' / ');
+  }
 }
 
 // ALERTAS TABLE
@@ -995,19 +1046,25 @@ async function loadReboloPolygon() {
   try {
     const resp = await fetch(GEOJSON_URL, { cache: 'force-cache' });
     const geojson = await resp.json();
+    // Buscar Rebolo en todas las propiedades del GeoJSON
     const rebolo = {
       type:'FeatureCollection',
       features: geojson.features.filter(f => {
         const p = f.properties||{};
-        const name = (p.BARRIO||p.Barrio||p.barrio||p.NOMBRE||p.nombre||p.SECTOR||'').toUpperCase();
-        return name.includes('REBOLO');
+        const allVals = Object.values(p).join(' ').toUpperCase();
+        return allVals.includes('REBOLO');
       })
     };
     if (rebolo.features.length > 0) {
       L.geoJSON(rebolo, {
-        style:{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.07, dashArray:'6 3' }
+        style:{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.08, dashArray:'8 4' },
+        onEachFeature:(f,layer)=>{
+          const p=f.properties||{};
+          const nm=p.BARRIO||p.Nombre||p.SECTOR||'Rebolo';
+          layer.bindTooltip('<b style="font-family:Montserrat;color:#C8A84B">'+nm+'</b>', {className:'rebolo-label'});
+        }
       }).addTo(leafletMap);
-      leafletMap.fitBounds(L.geoJSON(rebolo).getBounds(), { padding:[30,30] });
+      leafletMap.fitBounds(L.geoJSON(rebolo).getBounds(), { padding:[40,40] });
     } else {
       addManualPolygon();
     }
@@ -1018,13 +1075,36 @@ async function loadReboloPolygon() {
 }
 
 function addManualPolygon() {
+  // Coordenadas del Barrio Rebolo (DANE 2005) — Localidad Suroriente
+  // Norte: ~Cll 45-48 | Sur: ~Cll 26 | Oriente: Río Magdalena | Occidente: Cra 26/Av
   const coords = [
-    [10.9750,-74.7920],[10.9750,-74.7755],[10.9700,-74.7745],
-    [10.9660,-74.7755],[10.9600,-74.7780],[10.9560,-74.7820],
-    [10.9560,-74.7920],[10.9620,-74.7930],[10.9750,-74.7920]
+    [10.9708,-74.7895], // NW — inicio Av. Calle norte
+    [10.9715,-74.7840], // N — corredor norte
+    [10.9710,-74.7775], // NE — hacia el río
+    [10.9690,-74.7755], // E — borde río Magdalena
+    [10.9650,-74.7750], // E centro
+    [10.9610,-74.7760], // SE
+    [10.9580,-74.7790], // S-oriente
+    [10.9560,-74.7840], // S
+    [10.9560,-74.7890], // SW
+    [10.9580,-74.7920], // W-sur
+    [10.9630,-74.7930], // W
+    [10.9680,-74.7920], // W-norte
+    [10.9708,-74.7895], // cierre NW
   ];
-  L.polygon(coords,{ color:'#C8A84B', weight:2.5, fillColor:'#C8A84B', fillOpacity:.07, dashArray:'6 3' })
-   .addTo(leafletMap);
+  const poly = L.polygon(coords, {
+    color: '#C8A84B', weight: 2.5,
+    fillColor: '#C8A84B', fillOpacity: 0.08,
+    dashArray: '8 4'
+  }).addTo(leafletMap);
+  poly.bindTooltip('<b style="font-family:Montserrat;color:#C8A84B">Barrio Rebolo</b><br><span style="font-size:11px;color:#aaa">26.628 hab · 5.301 viv · DANE 2005</span>', {
+    permanent: true, direction: 'center', className: 'rebolo-label'
+  });
+  // Añadir CSS del tooltip
+  const s = document.createElement('style');
+  s.textContent = '.rebolo-label{background:rgba(0,28,55,.85);border:1px solid rgba(200,168,75,.4);border-radius:6px;padding:5px 10px;color:#fff;font-family:Montserrat,sans-serif;font-size:12px;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,.5);}';
+  document.head.appendChild(s);
+  leafletMap.fitBounds(poly.getBounds(), { padding: [40, 40] });
 }
 
 // ═══════════════════════════════════════════════════════
@@ -1032,12 +1112,7 @@ function addManualPolygon() {
 // ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   initMap();
-  if (SCRIPT_URL) {
-    cargarDatos();
-  } else {
-    setStatus('err', '● Sin configurar');
-    setTimeout(abrirConfig, 800);
-  }
+  cargarDatos();
 });
 </script>
 </body>
